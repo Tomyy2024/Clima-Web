@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa del Clima con Alertas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #map { height: 500px; width: 100%; }
+        .info-box { background: white; padding: 10px; border-radius: 5px; }
+        #chart-container, #chart-container2, #chart-container3, #chart-container4 { width: 80%; margin: auto; }
+        .filters { margin: 10px; text-align: center; }
+        .filters button { margin: 5px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>Mapa del Clima con Alertas</h2>
+    <div class="filters">
+        <button onclick="filtrarCiudad(-8.09, -79.02, 'Trujillo')">Trujillo</button>
+        <button onclick="filtrarCiudad(-9.13, -78.52, 'Chimbote')">Chimbote</button>
+        <button onclick="filtrarCiudad(-7.16, -78.51, 'Cajamarca')">Cajamarca</button>
+    </div>
+    <div id="map"></div>
+    <div id="chart-container">
+        <canvas id="climaChart"></canvas>
+    </div>
+    <div id="chart-container2">
+        <canvas id="tempChart"></canvas>
+    </div>
+    <div id="chart-container3">
+        <canvas id="precipChart"></canvas>
+    </div>
+    <div id="chart-container4">
+        <canvas id="precipHumedadMesChart"></canvas>
+    </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([-8.09, -79.02], 7);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        async function obtenerPronostico(lat, lon) {
+            const apiKey = '946f653a409d5e5cb3cde0b9c7f80de0';
+            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=es`;
+            
+            const respuesta = await fetch(url);
+            const datos = await respuesta.json();
+            return datos.list;
+        }
+
+        function filtrarCiudad(lat, lon, nombre) {
+            map.setView([lat, lon], 10);
+            cargarDatosGrafico(lat, lon);
+        }
+
+        async function cargarDatosGrafico(lat = -8.09, lon = -79.02) {
+            let datos = await obtenerPronostico(lat, lon);
+
+            const etiquetas = datos.slice(0, 10).map(d => d.dt_txt.split(' ')[1]);
+            const temperaturas = datos.slice(0, 10).map(d => d.main.temp);
+            const tempMax = datos.slice(0, 10).map(d => d.main.temp_max);
+            const tempMin = datos.slice(0, 10).map(d => d.main.temp_min);
+            const humedad = datos.slice(0, 10).map(d => d.main.humidity);
+            const precipitacion = datos.slice(0, 10).map(d => d.rain ? d.rain['3h'] || 0 : 0);
+
+            const ctx = document.getElementById('climaChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: etiquetas,
+                    datasets: [
+                        { label: 'Temperatura (°C)', data: temperaturas, borderColor: 'red', fill: false }
+                    ]
+                }
+            });
+
+            const ctx2 = document.getElementById('tempChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: etiquetas,
+                    datasets: [
+                        { label: 'Temperatura Máxima (°C)', data: tempMax, borderColor: 'orange', fill: false },
+                        { label: 'Temperatura Mínima (°C)', data: tempMin, borderColor: 'blue', fill: false }
+                    ]
+                }
+            });
+
+            const ctx3 = document.getElementById('precipChart').getContext('2d');
+            new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: etiquetas,
+                    datasets: [
+                        { label: 'Precipitación (mm)', data: precipitacion, backgroundColor: 'blue' },
+                        { label: 'Humedad (%)', data: humedad, backgroundColor: 'green' }
+                    ]
+                }
+            });
+
+            // Datos simulados de precipitación y humedad por mes
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const humedadMensual = Array.from({ length: 12 }, () => Math.floor(Math.random() * 100));
+            const precipitacionMensual = Array.from({ length: 12 }, () => Math.floor(Math.random() * 200));
+
+            const ctx4 = document.getElementById('precipHumedadMesChart').getContext('2d');
+            new Chart(ctx4, {
+                type: 'bar',
+                data: {
+                    labels: meses,
+                    datasets: [
+                        { label: 'Precipitación (mm)', data: precipitacionMensual, backgroundColor: 'blue' },
+                        { label: 'Humedad (%)', data: humedadMensual, backgroundColor: 'green' }
+                    ]
+                }
+            });
+        }
+        
+        cargarDatosGrafico();
+    </script>
+</body>
+</html>
